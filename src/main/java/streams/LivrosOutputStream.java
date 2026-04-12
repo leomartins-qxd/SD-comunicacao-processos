@@ -3,8 +3,10 @@ import entidades.Livro;
 
 
 import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.util.Scanner;
 
 public class LivrosOutputStream extends OutputStream{
     private OutputStream op;
@@ -60,28 +62,36 @@ public class LivrosOutputStream extends OutputStream{
 			}
 		}
 	}
-    
-    public void writeFile(String nomeArq) {
-		// envia os dados de um conjunto (array) de Livro
-		try {
-			File arq = new File(nomeArq);
-			if (arq.exists()) {
-				ObjectInputStream objInput = new ObjectInputStream(new FileInputStream(arq));
-				this.livros = (Livro[]) objInput.readObject();
-				objInput.close();
-				writeSystem();
-			}
-			else
-				System.out.println("Arquivo não encontrado.");
 
-		} catch (ClassNotFoundException | IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-	
+	public void writeFile(String nomeArq) {
+		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(nomeArq))) {
+			oos.writeObject(this.livros); // Escreve o array no arquivo
+			System.out.println("Dados gravados com sucesso em: " + nomeArq);
+		} catch (IOException e) {
+			throw new RuntimeException("Erro ao gravar arquivo", e);
+		}
+	}
+
 	public void writeTCP() {
-		// envia os dados de um conjunto (array) de Livros
-	}		
+		new Thread(() -> {
+			try (ServerSocket servidor = new ServerSocket(6789)) {
+				System.out.println("Servidor TCP aguardando na porta 6789");
+
+				try (Socket conexao = servidor.accept();
+                     Scanner entradaSocket = new Scanner(conexao.getInputStream())) {
+
+					System.out.println("Conexão estabelecida");
+
+					while (entradaSocket.hasNextLine()) {
+						String linha = entradaSocket.nextLine();
+						System.out.println("Recebido via TCP: " + linha);
+					}
+				}
+			} catch (IOException e) {
+				System.err.println("Erro no servidor: " + e.getMessage());
+			}
+		}).start();
+	}
 	
 	@Override
 	public void write(int b) throws IOException {

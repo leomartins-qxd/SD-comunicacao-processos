@@ -6,7 +6,7 @@ import entidades.Livro;
 public class TestLivroStreams {
     public static void main(String[] args) throws IOException {
         Livro[] livros = new Livro[1];
-        LivrosInputStream lis = new LivrosInputStream(livros, System.in);
+        LivrosInputStream lis = new LivrosInputStream(livros, System.in, System.out);
         livros = lis.readSystem();
         lis.close();
 

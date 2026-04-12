@@ -8,11 +8,14 @@ import entidades.Livro;
 
 public class LivrosInputStream extends InputStream{
     private InputStream is;
+    private OutputStream os;
     private Livro[] livros;
 
-    public LivrosInputStream(Livro[] l, InputStream is){
+
+    public LivrosInputStream(Livro[] l, InputStream is, OutputStream os){
         this.livros = l;
         this.is = is;
+        this.os = os;
     }
 
     private void readLivro(){
@@ -51,31 +54,52 @@ public class LivrosInputStream extends InputStream{
         return livros;
     }
 
-    public void readFile() {
-        readLivro();
+    public void readFile(String nomeArq) {
+        try (ObjectInputStream objInput = new ObjectInputStream(new FileInputStream(nomeArq))) {
 
-        Scanner sc = new Scanner(is);
-        System.out.println("Informe o nome do arquivo: ");
-        String nomeArq = sc.nextLine();
-        sc.close();
+            this.livros = (Livro[]) objInput.readObject();
 
-        File arq =  new File(nomeArq);
-        try {
-            arq.delete();
-            arq.createNewFile();
-
-            ObjectOutputStream objOutput = new ObjectOutputStream(new FileOutputStream(arq));
-            objOutput.writeObject(livros);
-            objOutput.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.out.println("--- Dados recuperados do ficheiro: " + nomeArq + " ---");
+            if (this.livros != null) {
+                for (Livro livro : this.livros) {
+                    if (livro != null) {
+                        System.out.println("Nome: " + livro.getNome());
+                        System.out.println("Autor: " + livro.getAutor());
+                        System.out.println("Preço: " + livro.getPreco());
+                        System.out.println("Quantidade: " + livro.getQuantidade());
+                        System.out.println("Data: " + livro.getData());
+                        System.out.println("Idioma: " + livro.getIdioma());
+                        System.out.println("Descricao: " + livro.getDescricao());
+                        System.out.println("---------------------------");
+                    }
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException("Erro ao ler dados do ficheiro: " + e.getMessage(), e);
         }
-
     }
 
     public Livro[] readTCP() {
-        // TODO
-        return null;
+        PrintStream ps = new PrintStream(this.os);
+
+        ps.println("Preparando envio de " + livros.length + " objetos"); // (ii)
+
+        for (int i = 0; i < this.livros.length; i++) {
+            Livro livro = this.livros[i];
+
+            if (livro != null) {
+                byte[] bNome = livro.getNome().getBytes();
+                byte[] bAutor = livro.getAutor().getBytes();
+                byte[] bGenero = livro.getGenero().getBytes();
+
+                ps.println("Objeto [" + i + "] - Dados de envio:");
+                ps.println(" Bytes do Nome: " + bNome.length);
+                ps.println(" Bytes do Autor: " + bAutor.length);
+                ps.println(" Bytes do Gênero: " + bGenero.length);
+            }
+        }
+
+        return this.livros;
     }
 
     @Override
