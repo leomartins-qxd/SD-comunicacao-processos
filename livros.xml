@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Lista>
+    <Item xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="livro">
+        <data/>
+        <descricao>1</descricao>
+        <idioma>1</idioma>
+        <nome>1</nome>
+        <preco>1.0</preco>
+        <quantidade>1</quantidade>
+        <autor>1</autor>
+        <edicao>1</edicao>
+        <editora>1</editora>
+        <genero>1</genero>
+        <paginas>1</paginas>
+    </Item>
+</Lista>
