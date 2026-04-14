@@ -48,7 +48,9 @@ public class Eleitor {
                 @SuppressWarnings("unchecked")
                 List<String> lista = (List<String>) resposta;
 
-                System.out.println("\n=== URNA ELETRÔNICA ===");
+                System.out.println("Por favor, vote no livro que mais deseja que comece\n" +
+                        " a ser ofertado em nossos serviços:");
+                System.out.println("\n=== CANDIDATOS ===");
                 for (int i = 0; i < lista.size(); i++) {
                     System.out.println(i + " - " + lista.get(i));
                 }

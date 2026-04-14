@@ -1,23 +1,26 @@
 package streams;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Scanner;
 
 import entidades.Disco;
 
-public class DiscosInputStream extends InputStream {
+
+public class DiscosInputStream extends InputStream{
     private InputStream is;
+    private OutputStream os;
     private Disco[] discos;
 
-    public DiscosInputStream(Disco[] l, InputStream is){
-        this.discos = l;
+
+    public DiscosInputStream(Disco[] d, InputStream is, OutputStream os){
+        this.discos = d;
         this.is = is;
+        this.os = os;
     }
 
-    public Disco[] readSystem(){
+    private void readDisco(){
         Scanner sc = new Scanner(is);
 
         System.out.println("Informe o nome do disco");
@@ -30,9 +33,9 @@ public class DiscosInputStream extends InputStream {
         LocalDate data = LocalDate.parse(sc.nextLine());
         System.out.println("Informe o idioma do disco");
         String idioma = sc.nextLine();
-        System.out.println("Informe a descricao do disco");
+        System.out.println("Informe a descrição do disco");
         String descricao = sc.nextLine();
-        System.out.println("Informe o genero do disco");
+        System.out.println("Informe o gênero do disco");
         String genero = sc.nextLine();
         System.out.println("Informe o tipo do disco");
         String tipo = sc.nextLine();
@@ -42,19 +45,61 @@ public class DiscosInputStream extends InputStream {
         LocalTime duracao = LocalTime.parse(sc.nextLine());
 
         discos[0] = new Disco(genero, tipo, produtora, duracao, descricao, idioma, data, quantidade, preco, nome);
-        sc.close();
+    }
 
+    public Disco[] readSystem(){
+        readDisco();
+        Scanner sc = new Scanner(is);
+        sc.close();
         return discos;
     }
 
-    public Disco[] readFile() {
-        // TODO
-        return discos;
+    public void readFile(String nomeArq) {
+        try (ObjectInputStream objInput = new ObjectInputStream(new FileInputStream(nomeArq))) {
+
+            this.discos = (Disco[]) objInput.readObject();
+
+            System.out.println("--- Dados recuperados do ficheiro: " + nomeArq + " ---");
+            if (this.discos != null) {
+                for (Disco disco : this.discos) {
+                    if (disco != null) {
+                        System.out.println("Nome: " + disco.getNome());
+                        System.out.println("Produtora: " + disco.getProdutora());
+                        System.out.println("Preço: " + disco.getPreco());
+                        System.out.println("Quantidade: " + disco.getQuantidade());
+                        System.out.println("Data: " + disco.getData());
+                        System.out.println("Idioma: " + disco.getIdioma());
+                        System.out.println("Descricao: " + disco.getDescricao());
+                        System.out.println("---------------------------");
+                    }
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException("Erro ao ler dados do ficheiro: " + e.getMessage(), e);
+        }
     }
 
     public Disco[] readTCP() {
-        // TODO
-        return discos;
+        PrintStream ps = new PrintStream(this.os);
+
+        ps.println("Preparando envio de " + discos.length + " objetos"); // (ii)
+
+        for (int i = 0; i < this.discos.length; i++) {
+            Disco disco = this.discos[i];
+
+            if (disco != null) {
+                byte[] bNome = disco.getNome().getBytes();
+                byte[] bProdutora = disco.getProdutora().getBytes();
+                byte[] bGenero = disco.getGenero().getBytes();
+
+                ps.println("Objeto [" + i + "] - Dados de envio:");
+                ps.println(" Bytes do Nome: " + bNome.length);
+                ps.println(" Bytes da Produtora: " + bProdutora.length);
+                ps.println(" Bytes do Gênero: " + bGenero.length);
+            }
+        }
+
+        return this.discos;
     }
 
     @Override

@@ -16,18 +16,18 @@ public class ServidorTCP {
                      ObjectInputStream entrada = new ObjectInputStream(conexao.getInputStream());
                      ObjectOutputStream saida = new ObjectOutputStream(conexao.getOutputStream())) {
 
-                    System.out.println("Cliente conectado: " + conexao.getInetAddress());
+                        System.out.println("Cliente conectado: " + conexao.getInetAddress());
 
-                    Livro livroRecebido = (Livro) entrada.readObject();
+                        Livro livroRecebido = (Livro) entrada.readObject();
 
-                    System.out.println("--- Request Recebido ---");
-                    System.out.println("Livro: " + livroRecebido.getNome());
-                    System.out.println("Autor: " + livroRecebido.getAutor());
-                    System.out.println("Preço: " + livroRecebido.getPreco());
+                        System.out.println("--- Request Recebido ---");
+                        System.out.println("Livro: " + livroRecebido.getNome());
+                        System.out.println("Autor: " + livroRecebido.getAutor());
+                        System.out.println("Preço: " + livroRecebido.getPreco());
 
-                    String resposta = "Sucesso: O livro '" + livroRecebido.getNome() + "' foi recebido.";
-                    saida.writeObject(resposta);
-                    saida.flush();
+                        String resposta = "Sucesso: O livro '" + livroRecebido.getNome() + "' foi recebido.";
+                        saida.writeObject(resposta);
+                        saida.flush();
 
                 } catch (ClassNotFoundException e) {
                     System.err.println("Erro: Classe Livro não encontrada no classpath.");
