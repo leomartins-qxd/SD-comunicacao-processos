@@ -1,13 +1,30 @@
 # Projeto Sebo Distribuído - Sistemas Distribuídos
+## Referente ao Trabalho 1 - Comunicação entre Processos
 
 Este projeto consiste em um sistema de gerenciamento de um sebo, integrando conceitos de Sockets TCP/UDP, Serialização de Objetos, Multicast e Threads em Java. O sistema permite o gerenciamento de produtos físicos e digitais, além de possuir um subsistema de votação para escolha de títulos favoritos.
 
 ## Grupo
 **Alunos:**
-* Leonardo Martins
-* Rodrigo Albuquerque
+* Leonardo Martins. Matrícula: 553762
+* Rodrigo Albuquerque. Matrícula: 554514
 
 ---
+## Aprendizado
+Essa atividade avançou nossos conhecimentos sobre sockets UDP e TCP, criação de classes mais complexas em Java, tratamento de arquivos e como lidar com Multicasts e Unicasts.
+
+---
+## Dificuldades Encontradas
+
+A serialização não foi realmente implementada como requisitado, após muitos problemas ao tentar utilizar bibliotecas. Além disso, um outro obstáculo foi implementar as streams, já que envolve diversos tipos de entradas e saídas (o que causou uma necessidade de ler mais afundo as classes de InputStream e OutputStream do java). Finalmente, houve problemas ao executar o Multicast em dispositivos específicos, em que a mensagem não chegava nos eleitores.
+
+---
+## Nota merecida
+Utilizamos diversos conceitos em uma linguagem verbosa e não tão simples, alcançando um resultado satisfatório que possibilita representar os estudos de sistemas distribuídos vistos em sala. 
+Porém, por conta de detalhes, como a serialização não estar corretamente implementada (o código funciona, porém sua lógica não é a correta), é certo dizer que não alcançamos nota máxima.
+Portanto, supomos que uma **nota 9** faria jus ao esforço e implementações que empregamos neste trabalho.
+
+## Horas para realização
+Contando as horas de leitura dos conteúdos, video-aulas externas e, principalmente, o próprio desenvolvimento do projeto, passamos cerca de **30 horas** para a realização desta atividade.
 
 ## Entidades Principais
 
@@ -46,8 +63,4 @@ Este módulo utiliza TCP para ações diretas (votar e gerir candidatos) e UDP M
 ### Opcional
 **MainTeste.java:** Pode ser utilizado para gerar os dados iniciais ou testar a lógica de leitura/escrita em arquivos `.dat` (como o `livros.dat`) antes do envio.
 
----
 
-## Dificuldades Encontradas
-
-A serialização não foi realmente implementada como requisitado, após muitos problemas ao tentar utilizar bibliotecas. Além disso, um outro obstáculo foi implementar as streams, já que envolve diversos tipos de entradas e saídas (o que causou uma necessidade de ler mais afundo as classes de InputStream e OutputStream do java). Finalmente, houve problemas ao executar o Multicast em dispositivos específicos, em que a mensagem não chegava nos eleitores.
