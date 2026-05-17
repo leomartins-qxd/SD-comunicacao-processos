@@ -1,9 +1,8 @@
 package entidades;
-import java.io.Serializable;
 import java.time.LocalDate;
 
 
-public class Livro extends ProdutoFisico implements Serializable {
+public class Livro extends ProdutoFisico implements Trocavel {
     private int paginas;
     private String autor;
     private String genero;
@@ -60,6 +59,22 @@ public class Livro extends ProdutoFisico implements Serializable {
 
     public void setGenero(String genero) {
         this.genero = genero;
+    }
+
+    @Override
+    public double calcularValorDeTroca() {
+        // O cliente recebe 40% do valor do livro original em créditos
+        return this.getPreco() * 0.40;
+    }
+
+    @Override
+    public boolean validarCondicaoTroca(String estadoConservacao) {
+        // Livros não são aceitos se estiverem rasgados
+        estadoConservacao = estadoConservacao.toLowerCase();
+        if (estadoConservacao.contains("rasgado")) {
+            return false;
+        }
+        return true;
     }
 
 }

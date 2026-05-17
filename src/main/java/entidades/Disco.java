@@ -2,7 +2,7 @@ package entidades;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-public class Disco extends ProdutoFisico {
+public class Disco extends ProdutoFisico implements Trocavel {
     private String genero;
     private String tipo;
     private String produtora;
@@ -49,4 +49,19 @@ public class Disco extends ProdutoFisico {
         this.genero = genero;
     }
 
+    @Override
+    public double calcularValorDeTroca() {
+        // O cliente recebe 50% do valor do disco original em créditos
+        return this.getPreco() * 0.50;
+    }
+
+    @Override
+    public boolean validarCondicaoTroca(String estadoConservacao) {
+        // Discos não podem ter arranhões ou serem torcidos
+        estadoConservacao = estadoConservacao.toLowerCase();
+        if (estadoConservacao.contains("arranhado") || estadoConservacao.contains("torcido") || estadoConservacao.contains("quebrado")) {
+            return false;
+        }
+        return true;
+    }
 }

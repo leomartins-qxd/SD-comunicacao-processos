@@ -1,7 +1,7 @@
 package entidades;
 import java.time.LocalDate;
 
-public class Apostila extends ProdutoFisico {
+public class Apostila extends ProdutoFisico implements Trocavel {
     private int paginas;
     private String autor;
     private String area;
@@ -56,5 +56,21 @@ public class Apostila extends ProdutoFisico {
 
     public void setEdicao(int edicao) {
         this.edicao = edicao;
+    }
+
+    @Override
+    public double calcularValorDeTroca() {
+        // Apostilas perdem muito valor, pagando apenas 20% do original
+        return this.getPreco() * 0.20;
+    }
+
+    @Override
+    public boolean validarCondicaoTroca(String estadoConservacao) {
+        // O sebo não aceita apostilas que já estejam riscadas com caneta
+        estadoConservacao = estadoConservacao.toLowerCase();
+        if (estadoConservacao.contains("rabiscada") || estadoConservacao.contains("preenchida") || estadoConservacao.contains("caneta")) {
+            return false;
+        }
+        return true;
     }
 }
