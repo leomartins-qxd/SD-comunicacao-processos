@@ -2,6 +2,8 @@ package entidades;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import interfaces.Trocavel;
+
 public class Disco extends ProdutoFisico implements Trocavel {
     private String genero;
     private String tipo;

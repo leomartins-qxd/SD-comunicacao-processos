@@ -1,6 +1,8 @@
 package entidades;
 import java.time.LocalDate;
 
+import interfaces.Trocavel;
+
 public class Apostila extends ProdutoFisico implements Trocavel {
     private int paginas;
     private String autor;

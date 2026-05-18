@@ -1,4 +1,4 @@
-package entidades;
+package interfaces;
 
 public interface Trocavel {
     double calcularValorDeTroca();
