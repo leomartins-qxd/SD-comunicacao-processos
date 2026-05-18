@@ -65,8 +65,7 @@ public class Livro extends ProdutoFisico implements Trocavel {
 
     @Override
     public double calcularValorDeTroca() {
-        // O cliente recebe 40% do valor do livro original em créditos
-        return this.getPreco() * 0.40;
+        return 10.0; // Para simplificar, estamos usando um valor fixo de R$ 10.0 para livros usados, independentemente do preço original.
     }
 
     @Override

@@ -22,7 +22,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
         catalogoDigital = new HashMap<>();
         clientes = new HashMap<>();
         
-        // Inicializando dados de teste com as SUAS entidades originais
+        // Dados de teste
         catalogoFisico.put(1, new Livro(300, "Machado de Assis", "Romance", "Typographia", 1,
                 "Dom Casmurro", 45.0, 5, LocalDate.now(), "PT", "Clássico da literatura"));
                 
@@ -42,6 +42,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             case 2: return consultarSaldo(jsonArguments);
             case 3: return realizarCompraFisica(jsonArguments);
             case 4: return realizarCompraDigital(jsonArguments);
+            case 5: return avaliarTrocaLivro(jsonArguments);
             default: return "{\"status\": \"erro\", \"mensagem\": \"Método inválido\"}";
         }
     }
@@ -109,6 +110,35 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             return String.format("{\"status\": \"sucesso\", \"mensagem\": \"Download do produto '%s' liberado!\", \"saldoRestante\": %.2f}", p.getNome(), c.getSaldo());
         }
         return "{\"status\": \"erro\", \"mensagem\": \"Saldo insuficiente\"}";
+    }
+
+    private String avaliarTrocaLivro(String jsonArgs) {
+        String clienteId = extrairValorJson(jsonArgs, "clienteId");
+        String nomeLivro = extrairValorJson(jsonArgs, "nomeLivro");
+        String estado = extrairValorJson(jsonArgs, "estado");
+
+        Cliente c = clientes.get(clienteId);
+        if (c == null) return "{\"status\": \"erro\", \"mensagem\": \"Cliente não encontrado\"}";
+
+        // O livro recebido pode ser um livro genérico, pois só precisamos das informações para validação e cálculo de créditos.
+        // Após isso, o sebo iria avaliar o livro e completar os dados após a avaliação.
+        Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", "Independente", 1, 
+                                         nomeLivro, 50.0, 1, LocalDate.now(), "PT", "Livro usado");
+
+        // Checagem do estado do produto
+        if (!livroOferecido.validarCondicaoTroca(estado)) {
+            return "{\"status\": \"erro\", \"mensagem\": \"Troca recusada. Não aceitamos livros no estado: " + estado + "\"}";
+        }
+
+        double creditosGanhos = livroOferecido.calcularValorDeTroca();
+
+        c.adicionarCredito(creditosGanhos);
+
+        int novoId = catalogoFisico.size() + catalogoDigital.size() + 1;
+        catalogoFisico.put(novoId, livroOferecido);
+
+        return String.format("{\"status\": \"sucesso\", \"mensagem\": \"Livro aceito! Você recebeu R$ %.2f de créditos.\", \"saldo\": %.2f}", 
+                             creditosGanhos, c.getSaldo());
     }
 
     private String extrairValorJson(String json, String chave) {

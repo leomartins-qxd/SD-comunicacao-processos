@@ -23,7 +23,8 @@ public class ClienteVenda {
                 System.out.println(" 2. Ver Saldo");
                 System.out.println(" 3. Comprar Produto Físico");
                 System.out.println(" 4. Comprar Produto Digital"); 
-                System.out.println(" 5. Sair"); 
+                System.out.println(" 5. Trocar Livro (Oferecer ao Sebo)");
+                System.out.println(" 0. Sair"); 
                 System.out.println("-----------------------------------------"); 
                 System.out.print("Opção escolhida: ");
                 
@@ -35,7 +36,7 @@ public class ClienteVenda {
                     continue;
                 }
 
-                if (opcao == 5) {
+                if (opcao == 0) {
                     System.out.println("\nSaindo do sistema.");
                     break;
                 }
@@ -71,6 +72,22 @@ public class ClienteVenda {
                         jsonRequest = "{\"clienteId\":\"" + idCliente + "\", \"produtoId\":\"" + idDigital + "\"}";
                         jsonResponse = servico.doOperation(4, jsonRequest);
 
+                        formatarSaidaStatus(jsonResponse);
+                        break;
+                    case 5:
+                        System.out.print("Introduza o Nome do Livro que deseja trocar: ");
+                        String nomeLivro = sc.nextLine();
+                        
+                        System.out.print("O livro possui defeitos? (Se não houver problemas, aperte ENTER. Se houver, descreva. Ex: rasgado): ");
+                        String estado = sc.nextLine();
+                        
+                        // Assume que o estado está bom, já que o cliente não informou nenhum defeito.
+                        if (estado.trim().isEmpty()) {
+                            estado = "Novo";
+                        }
+
+                        jsonRequest = "{\"clienteId\":\"" + idCliente + "\", \"nomeLivro\":\"" + nomeLivro + "\", \"estado\":\"" + estado + "\"}";
+                        jsonResponse = servico.doOperation(5, jsonRequest);
                         formatarSaidaStatus(jsonResponse);
                         break;
                     default:
@@ -121,7 +138,7 @@ public class ClienteVenda {
         
         System.out.println("\n-----------------------------------------------------------------");
         if ("sucesso".equalsIgnoreCase(status)) {
-            System.out.println(" [✓] OPERAÇÃO REALIZADA COM SUCESSO");
+            System.out.println("OPERAÇÃO REALIZADA COM SUCESSO");
             
             String mensagem = extrairCampo(json, "mensagem");
             if (!mensagem.isEmpty()) {
@@ -138,7 +155,7 @@ public class ClienteVenda {
                 System.out.println(" Saldo Restante: R$ " + saldoRestante);
             }
         } else {
-            System.out.println(" [X] ERRO NA OPERAÇÃO");
+            System.out.println("ERRO NA OPERAÇÃO");
             System.out.println(" Motivo: " + extrairCampo(json, "mensagem"));
         }
         System.out.println("-----------------------------------------------------------------");
