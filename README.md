@@ -20,7 +20,7 @@ atual realmente está sendo executado, e quais dados ele possui acesso.
 
 
 ## Nota merecida
-
+Esta entrega atingiu os requisitos propostos pelo trabalho, faltando apenas refinamentos no sistema para deixá-lo mais único. Por conta disso, um 9 seria a nota esperada.
 
 ## Horas para realização
 Contando as horas de leitura dos conteúdos, video-aulas externas e, principalmente, o próprio desenvolvimento do projeto, passamos cerca de **20 horas** para a realização desta atividade.
@@ -39,6 +39,7 @@ O sistema foi construído utilizando uma hierarquia de classes para representar 
     * `ProdutoFisico`: Define características de itens tangíveis (como peso e dimensões).
     * `ProdutoDigital`: Define características de itens virtuais (como link para download e validade).
 
+ Além disso, segue o padrão do RMI, com funções doOperation(), getRequest() e sendReply().
 ---
 
 ## Instruções de Execução
