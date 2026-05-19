@@ -4,6 +4,7 @@ import java.io.*;
 import java.time.LocalDate;
 import java.util.Scanner;
 import entidades.Ebook;
+import entidades.Editora;
 
 
 public class EbookInputStream extends InputStream {
@@ -39,11 +40,11 @@ public class EbookInputStream extends InputStream {
         System.out.println("Informe o gênero do ebook");
         String genero = sc.nextLine();
         System.out.println("Informe a editora do ebook");
-        String editora = sc.nextLine();
+        String nomeEditora = sc.nextLine();
         System.out.println("Informe a edição do ebook");
         int edicao = Integer.parseInt(sc.nextLine());
 
-        ebooks[0] = new Ebook(paginas, tamanho_arquivo, autor, genero, editora, edicao, nome, preco, data, idioma, descricao);
+        ebooks[0] = new Ebook(paginas, tamanho_arquivo, autor, genero, new Editora(nomeEditora, "Desconhecida"), edicao, nome, preco, data, idioma, descricao);
     }
 
     public Ebook[] readSystem() {

@@ -6,10 +6,10 @@ public class Ebook extends ProdutoDigital {
     private int tamanho_arquivo;
     private String autor;
     private String genero;
-    private String editora;
+    private Editora editora;
     private int edicao;
 
-    public Ebook(int paginas, int tamanho_arquivo, String autor, String genero, String editora, int edicao, String nome, 
+    public Ebook(int paginas, int tamanho_arquivo, String autor, String genero, Editora editora, int edicao, String nome, 
         double preco, LocalDate data, String idioma, String descricao) {
         super(nome, preco, data, idioma, descricao);
         this.paginas = paginas;
@@ -28,11 +28,11 @@ public class Ebook extends ProdutoDigital {
         this.edicao = edicao;
     }
 
-    public String getEditora() {
+    public Editora getEditora() {
         return editora;
     }
 
-    public void setEditora(String editora) {
+    public void setEditora(Editora editora) {
         this.editora = editora;
     }
 

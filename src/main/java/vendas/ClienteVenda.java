@@ -1,10 +1,19 @@
 package vendas;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import java.io.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Scanner;
 
 public class ClienteVenda {
+    private static Gson gson = new Gson();
+    private static int contadorRequisicao = 1; // Conta os IDs das mensagens
+
     public static void main(String[] args) {
         try {
             Registry registry = LocateRegistry.getRegistry("localhost", 1099);
@@ -41,55 +50,68 @@ public class ClienteVenda {
                     break;
                 }
 
-                String jsonRequest = "";
+                JsonObject requestJson = new JsonObject();
+                byte[] argumentosJson = null;
+                byte[] respostaBytes = null;
                 String jsonResponse = "";
 
-                // O cliente empacota os parâmetros em JSON
                 switch(opcao) {
                     case 1:
-                        jsonRequest = "{}"; 
-                        jsonResponse = servico.doOperation(1, jsonRequest);
-
+                        argumentosJson = gson.toJson(requestJson).getBytes();
+                        respostaBytes = doOperation(servico, "ServicoSebo", 1, argumentosJson);
+                        jsonResponse = new String(respostaBytes);
                         formatarSaidaCatalogo(jsonResponse); 
                         break;
+                        
                     case 2:
-                        jsonRequest = "{\"clienteId\":\"" + idCliente + "\"}";
-                        jsonResponse = servico.doOperation(2, jsonRequest);
-
+                        requestJson.addProperty("clienteId", idCliente);
+                        argumentosJson = gson.toJson(requestJson).getBytes();
+                        respostaBytes = doOperation(servico, "ServicoSebo", 2, argumentosJson);
+                        jsonResponse = new String(respostaBytes);
                         formatarSaidaStatus(jsonResponse); 
                         break;
+                        
                     case 3:
                         System.out.print("Introduza o ID do Produto Físico a comprar: ");
-                        String idFisico = sc.nextLine();
-                        jsonRequest = "{\"clienteId\":\"" + idCliente + "\", \"produtoId\":\"" + idFisico + "\"}";
-                        jsonResponse = servico.doOperation(3, jsonRequest);
-
+                        int idFisico = Integer.parseInt(sc.nextLine());
+                        requestJson.addProperty("clienteId", idCliente);
+                        requestJson.addProperty("produtoId", idFisico);
+                        
+                        argumentosJson = gson.toJson(requestJson).getBytes();
+                        respostaBytes = doOperation(servico, "ServicoSebo", 3, argumentosJson);
+                        jsonResponse = new String(respostaBytes);
                         formatarSaidaStatus(jsonResponse);
                         break;
+                        
                     case 4:
                         System.out.print("Introduza o ID do Produto Digital a comprar: ");
-                        String idDigital = sc.nextLine();
-                        jsonRequest = "{\"clienteId\":\"" + idCliente + "\", \"produtoId\":\"" + idDigital + "\"}";
-                        jsonResponse = servico.doOperation(4, jsonRequest);
-
+                        int idDigital = Integer.parseInt(sc.nextLine());
+                        requestJson.addProperty("clienteId", idCliente);
+                        requestJson.addProperty("produtoId", idDigital);
+                        
+                        argumentosJson = gson.toJson(requestJson).getBytes();
+                        respostaBytes = doOperation(servico, "ServicoSebo", 4, argumentosJson);
+                        jsonResponse = new String(respostaBytes);
                         formatarSaidaStatus(jsonResponse);
                         break;
+                        
                     case 5:
                         System.out.print("Introduza o Nome do Livro que deseja trocar: ");
                         String nomeLivro = sc.nextLine();
-                        
-                        System.out.print("O livro possui defeitos? (Se não houver problemas, aperte ENTER. Se houver, descreva. Ex: rasgado): ");
+                        System.out.print("O livro possui defeitos? (Se não houver problemas, aperte ENTER): ");
                         String estado = sc.nextLine();
-                        
-                        // Assume que o estado está bom, já que o cliente não informou nenhum defeito.
-                        if (estado.trim().isEmpty()) {
-                            estado = "Novo";
-                        }
+                        if (estado.trim().isEmpty()) estado = "Novo";
 
-                        jsonRequest = "{\"clienteId\":\"" + idCliente + "\", \"nomeLivro\":\"" + nomeLivro + "\", \"estado\":\"" + estado + "\"}";
-                        jsonResponse = servico.doOperation(5, jsonRequest);
+                        requestJson.addProperty("clienteId", idCliente);
+                        requestJson.addProperty("nomeLivro", nomeLivro);
+                        requestJson.addProperty("estado", estado);
+                        
+                        argumentosJson = gson.toJson(requestJson).getBytes();
+                        respostaBytes = doOperation(servico, "ServicoSebo", 5, argumentosJson);
+                        jsonResponse = new String(respostaBytes);
                         formatarSaidaStatus(jsonResponse);
                         break;
+                        
                     default:
                         System.out.println("\nOpção incorreta. Tente novamente.");
                         break;
@@ -100,94 +122,61 @@ public class ClienteVenda {
         } catch (Exception e) {
             System.err.println("Erro de ligação ao Servidor: " + e.getMessage());
         }
-
-
     }
 
-    //Formata e exibe a lista de produtos recebida em JSON
+    public static byte[] doOperation(ServicoVenda servico, String objectReference, int methodId, byte[] arguments) throws Exception {
+        // Criando a mensagem do request
+        Mensagem requestMsg = new Mensagem(0, contadorRequisicao++, objectReference, methodId, arguments);
+
+        byte[] requestBytes;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(requestMsg);
+            requestBytes = bos.toByteArray();
+        }
+
+        byte[] replyBytes = servico.comunicar(requestBytes);
+
+        Mensagem replyMsg;
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(replyBytes);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+            replyMsg = (Mensagem) ois.readObject();
+        }
+
+        return replyMsg.getArguments();
+    }
+
     private static void formatarSaidaCatalogo(String json) {
         System.out.println("\n=================================================================");
         System.out.printf(" %-5s | %-30s | %-10s | %-10s \n", "ID", "NOME DO PRODUTO", "TIPO", "PREÇO");
         System.out.println("-----------------------------------------------------------------");
-
-        // Tratamento simples da string JSON para extrair os objetos do array
-        if (!json.contains("[") || json.contains("[]")) {
-            System.out.println(" Nenhum produto disponível no catálogo.");
+        JsonObject res = gson.fromJson(json, JsonObject.class);
+        if (!res.has("produtos") || res.getAsJsonArray("produtos").isEmpty()) {
+            System.out.println(" Nenhum produto disponível.");
             System.out.println("=================================================================");
             return;
         }
-
-        String conteudoArray = json.substring(json.indexOf("[") + 1, json.lastIndexOf("]"));
-        String[] itens = conteudoArray.split("\\},");
-
-        for (String item : itens) {
-            String id = extrairCampo(item, "id");
-            String nome = extrairCampo(item, "nome");
-            String tipo = extrairCampo(item, "tipo");
-            String preco = extrairCampo(item, "preco");
-
-            System.out.printf(" %-5s | %-30s | %-10s | R$ %-8s \n", id, nome, tipo, preco);
+        JsonArray produtos = res.getAsJsonArray("produtos");
+        for (JsonElement element : produtos) {
+            JsonObject item = element.getAsJsonObject();
+            System.out.printf(" %-5s | %-30s | %-10s | R$ %-8s \n", item.get("id").getAsString(), item.get("nome").getAsString(), item.get("tipo").getAsString(), item.get("preco").getAsString());
         }
         System.out.println("=================================================================");
     }
 
-    // Formata e exibe as mensagens de sucesso, erro e alteração de saldos
-     
     private static void formatarSaidaStatus(String json) {
-        String status = extrairCampo(json, "status");
-        
+        JsonObject res = gson.fromJson(json, JsonObject.class);
+        String status = res.has("status") ? res.get("status").getAsString() : "erro";
         System.out.println("\n-----------------------------------------------------------------");
         if ("sucesso".equalsIgnoreCase(status)) {
-            System.out.println("OPERAÇÃO REALIZADA COM SUCESSO");
-            
-            String mensagem = extrairCampo(json, "mensagem");
-            if (!mensagem.isEmpty()) {
-                System.out.println(" Mensagem: " + mensagem);
-            }
-            
-            String saldo = extrairCampo(json, "saldo");
-            if (!saldo.isEmpty()) {
-                System.out.println(" Saldo Atual: R$ " + saldo);
-            }
-            
-            String saldoRestante = extrairCampo(json, "saldoRestante");
-            if (!saldoRestante.isEmpty()) {
-                System.out.println(" Saldo Restante: R$ " + saldoRestante);
-            }
+            System.out.println(" [✓] OPERAÇÃO REALIZADA COM SUCESSO");
+            if (res.has("mensagem")) System.out.println(" Mensagem: " + res.get("mensagem").getAsString());
+            if (res.has("saldo")) System.out.println(" Saldo Atual: R$ " + res.get("saldo").getAsString());
+            if (res.has("saldoRestante")) System.out.println(" Saldo Restante: R$ " + res.get("saldoRestante").getAsString());
         } else {
-            System.out.println("ERRO NA OPERAÇÃO");
-            System.out.println(" Motivo: " + extrairCampo(json, "mensagem"));
+            System.out.println(" [X] ERRO NA OPERAÇÃO");
+            System.out.println(" Motivo: " + (res.has("mensagem") ? res.get("mensagem").getAsString() : "Erro desconhecido"));
         }
         System.out.println("-----------------------------------------------------------------");
-    }
-
-    // Função para extrair valores de chaves dentro da string JSON
-     
-    private static String extrairCampo(String json, String chave) {
-        String padraoChave = "\"" + chave + "\":";
-        int indexChave = json.indexOf(padraoChave);
-        if (indexChave == -1) {
-            padraoChave = chave + ":";
-            indexChave = json.indexOf(padraoChave);
-            if (indexChave == -1) return "";
-        }
-
-        int indexInicio = indexChave + padraoChave.length();
-        
-        // Pula espaços em branco ou aspas iniciais
-        while (indexInicio < json.length() && (json.charAt(indexInicio) == ' ' || json.charAt(indexInicio) == '"')) {
-            indexInicio++;
-        }
-
-        int indexFim = indexInicio;
-        while (indexFim < json.length()) {
-            char c = json.charAt(indexFim);
-            if (c == '"' || c == ',' || c == '}' || c == ']') {
-                break;
-            }
-            indexFim++;
-        }
-
-        return json.substring(indexInicio, indexFim).trim();
     }
 }

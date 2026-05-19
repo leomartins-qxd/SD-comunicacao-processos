@@ -8,12 +8,12 @@ public class Livro extends ProdutoFisico implements Trocavel {
     private int paginas;
     private String autor;
     private String genero;
-    private String editora;
+    private Editora editora;
     private int edicao;
 
     public Livro(){}
 
-    public Livro(int paginas, String autor, String genero, String editora, int edicao, String nome, double preco, int quantidade, LocalDate data, String idioma, String descricao) {
+    public Livro(int paginas, String autor, String genero, Editora editora, int edicao, String nome, double preco, int quantidade, LocalDate data, String idioma, String descricao) {
         super(descricao, idioma, data, quantidade, preco, nome);
         this.paginas = paginas;
         this.autor = autor;
@@ -46,11 +46,11 @@ public class Livro extends ProdutoFisico implements Trocavel {
         this.edicao = edicao;
     }
 
-    public String getEditora() {
+    public Editora getEditora() {
         return editora;
     }
 
-    public void setEditora(String editora) {
+    public void setEditora(Editora editora) {
         this.editora = editora;
     }
 

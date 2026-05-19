@@ -1,6 +1,11 @@
 package vendas;
 
 import entidades.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import java.io.*;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -11,22 +16,24 @@ import java.util.Map;
 
 public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
     
-    // O servidor agrega os mapas de produtos e clientes
     private Map<Integer, ProdutoFisico> catalogoFisico;
     private Map<Integer, ProdutoDigital> catalogoDigital;
     private Map<String, Cliente> clientes;
+    private Gson gson;
 
     protected ServidorVenda() throws RemoteException {
         super();
         catalogoFisico = new HashMap<>();
         catalogoDigital = new HashMap<>();
         clientes = new HashMap<>();
+        gson = new Gson();
         
-        // Dados de teste
-        catalogoFisico.put(1, new Livro(300, "Machado de Assis", "Romance", "Typographia", 1,
+        catalogoFisico.put(1, new Livro(300, "Machado de Assis", "Romance", 
+                new Editora("Typographia", "Rio de Janeiro"), 1,
                 "Dom Casmurro", 45.0, 5, LocalDate.now(), "PT", "Clássico da literatura"));
                 
-        catalogoDigital.put(2, new Ebook(150, 2048, "Autor Digital", "Tecnologia", "TechBooks", 1, 
+        catalogoDigital.put(2, new Ebook(150, 2048, "Autor Digital", "Tecnologia", 
+                new Editora("TechBooks", "São Paulo"), 1, 
                 "Java RMI Guide", 25.0, LocalDate.now(), "PT", "Aprenda RMI passo a passo"));
         
         clientes.put("leomartins", new Cliente("leomartins", "Leonardo Martins", 100.0));
@@ -34,120 +41,206 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
     }
 
     @Override
-    public String doOperation(int methodId, String jsonArguments) throws RemoteException {
-        System.out.println("[SERVIDOR] Operação solicitada: " + methodId);
+    public byte[] comunicar(byte[] requisicaoBytes) throws RemoteException {
+        Mensagem request = getRequest(requisicaoBytes);
         
-        switch (methodId) {
-            case 1: return listarProdutos();
-            case 2: return consultarSaldo(jsonArguments);
-            case 3: return realizarCompraFisica(jsonArguments);
-            case 4: return realizarCompraDigital(jsonArguments);
-            case 5: return avaliarTrocaLivro(jsonArguments);
-            default: return "{\"status\": \"erro\", \"mensagem\": \"Método inválido\"}";
+        System.out.println("[SERVIDOR] Recebido RequestID: " + request.getRequestId() + " | MethodID: " + request.getMethodId());
+
+        byte[] resultadoBytes = null;
+        
+        // Verifica a referência do objeto
+        if ("ServicoSebo".equals(request.getObjectReference())) {
+            // Transforma os bytes do JSON de volta para String
+            String jsonArgs = new String(request.getArguments());
+            String jsonResponse = "";
+
+            switch (request.getMethodId()) {
+                case 1: jsonResponse = listarProdutos(); break;
+                case 2: jsonResponse = consultarSaldo(jsonArgs); break;
+                case 3: jsonResponse = realizarCompraFisica(jsonArgs); break;
+                case 4: jsonResponse = realizarCompraDigital(jsonArgs); break;
+                case 5: jsonResponse = avaliarTrocaLivro(jsonArgs); break;
+                default: 
+                    JsonObject erro = new JsonObject();
+                    erro.addProperty("status", "erro");
+                    erro.addProperty("mensagem", "Método inválido");
+                    jsonResponse = gson.toJson(erro);
+            }
+            // Transforma a String JSON de resposta em bytes
+            resultadoBytes = jsonResponse.getBytes();
+        }
+
+        return sendReply(request.getRequestId(), resultadoBytes);
+    }
+
+    // getRequest(): Desempacota o array de bytes na classe Mensagem
+     
+    public Mensagem getRequest(byte[] dados) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(dados);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+            return (Mensagem) ois.readObject();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // sendReply(): Empacota os bytes de resultado numa nova Mensagem e serializa
+     
+    public byte[] sendReply(int requestId, byte[] argumentosResposta) {
+        // messageType = 1 indica que é um Reply
+        Mensagem reply = new Mensagem(1, requestId, "ServicoSebo", 0, argumentosResposta);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(reply);
+            return bos.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
         }
     }
 
     private String listarProdutos() {
-        StringBuilder sb = new StringBuilder("{\"produtos\": [");
-        boolean primeiro = true;
+        JsonObject resposta = new JsonObject();
+        JsonArray produtosArray = new JsonArray();
         
         for (Map.Entry<Integer, ProdutoFisico> entry : catalogoFisico.entrySet()) {
-            if (!primeiro) sb.append(", ");
-            sb.append(String.format("{\"id\": %d, \"nome\": \"%s\", \"tipo\": \"Fisico\", \"preco\": %.2f}", 
-                entry.getKey(), entry.getValue().getNome(), entry.getValue().getPreco()));
-            primeiro = false;
+            JsonObject p = new JsonObject();
+            p.addProperty("id", entry.getKey());
+            p.addProperty("nome", entry.getValue().getNome());
+            p.addProperty("tipo", "Fisico");
+            p.addProperty("preco", entry.getValue().getPreco());
+            produtosArray.add(p);
         }
         for (Map.Entry<Integer, ProdutoDigital> entry : catalogoDigital.entrySet()) {
-            if (!primeiro) sb.append(", ");
-            sb.append(String.format("{\"id\": %d, \"nome\": \"%s\", \"tipo\": \"Digital\", \"preco\": %.2f}", 
-                entry.getKey(), entry.getValue().getNome(), entry.getValue().getPreco()));
-            primeiro = false;
+            JsonObject p = new JsonObject();
+            p.addProperty("id", entry.getKey());
+            p.addProperty("nome", entry.getValue().getNome());
+            p.addProperty("tipo", "Digital");
+            p.addProperty("preco", entry.getValue().getPreco());
+            produtosArray.add(p);
         }
-        sb.append("]}");
-        return sb.toString();
+        
+        resposta.add("produtos", produtosArray);
+        return gson.toJson(resposta);
     }
 
     private String consultarSaldo(String jsonArgs) {
-        String clienteId = extrairValorJson(jsonArgs, "clienteId");
+        JsonObject request = gson.fromJson(jsonArgs, JsonObject.class);
+        String clienteId = request.get("clienteId").getAsString();
+        
+        JsonObject response = new JsonObject();
         Cliente c = clientes.get(clienteId);
+        
         if (c != null) {
-            // Acesso direto ao saldo do cliente
-            return String.format("{\"status\": \"sucesso\", \"saldo\": %.2f}", c.getSaldo());
+            response.addProperty("status", "sucesso");
+            response.addProperty("saldo", c.getSaldo());
+        } else {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Cliente não encontrado");
         }
-        return "{\"status\": \"erro\", \"mensagem\": \"Cliente não encontrado\"}";
+        return gson.toJson(response);
     }
 
     private String realizarCompraFisica(String jsonArgs) {
-        String clienteId = extrairValorJson(jsonArgs, "clienteId");
-        int produtoId = Integer.parseInt(extrairValorJson(jsonArgs, "produtoId"));
+        JsonObject request = gson.fromJson(jsonArgs, JsonObject.class);
+        String clienteId = request.get("clienteId").getAsString();
+        int produtoId = request.get("produtoId").getAsInt();
         
+        JsonObject response = new JsonObject();
         Cliente c = clientes.get(clienteId);
         ProdutoFisico p = catalogoFisico.get(produtoId);
 
-        if (c == null) return "{\"status\": \"erro\", \"mensagem\": \"Cliente não encontrado\"}";
-        if (p == null) return "{\"status\": \"erro\", \"mensagem\": \"Produto não encontrado\"}";
-        if (p.getQuantidade() <= 0) return "{\"status\": \"erro\", \"mensagem\": \"Produto esgotado\"}";
+        if (c == null) {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Cliente não encontrado");
+            return gson.toJson(response);
+        }
+        if (p == null) {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Produto não encontrado");
+            return gson.toJson(response);
+        }
+        if (p.getQuantidade() <= 0) {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Produto esgotado");
+            return gson.toJson(response);
+        }
 
-        // Débito feito diretamente no cliente
         if (c.debitar(p.getPreco())) {
             p.setQuantidade(p.getQuantidade() - 1); 
-            return String.format("{\"status\": \"sucesso\", \"mensagem\": \"Compra do livro '%s' efetuada!\", \"saldoRestante\": %.2f}", p.getNome(), c.getSaldo());
+            response.addProperty("status", "sucesso");
+            response.addProperty("mensagem", "Compra do livro '" + p.getNome() + "' efetuada!");
+            response.addProperty("saldoRestante", c.getSaldo());
+        } else {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Saldo insuficiente");
         }
-        return "{\"status\": \"erro\", \"mensagem\": \"Saldo insuficiente\"}";
+        return gson.toJson(response);
     }
 
     private String realizarCompraDigital(String jsonArgs) {
-        String clienteId = extrairValorJson(jsonArgs, "clienteId");
-        int produtoId = Integer.parseInt(extrairValorJson(jsonArgs, "produtoId"));
+        JsonObject request = gson.fromJson(jsonArgs, JsonObject.class);
+        String clienteId = request.get("clienteId").getAsString();
+        int produtoId = request.get("produtoId").getAsInt();
         
+        JsonObject response = new JsonObject();
         Cliente c = clientes.get(clienteId);
         ProdutoDigital p = catalogoDigital.get(produtoId);
 
-        if (c == null || p == null) return "{\"status\": \"erro\", \"mensagem\": \"Cliente ou Produto inválido\"}";
-
-        // Débito feito diretamente no cliente
-        if (c.debitar(p.getPreco())) {
-            return String.format("{\"status\": \"sucesso\", \"mensagem\": \"Download do produto '%s' liberado!\", \"saldoRestante\": %.2f}", p.getNome(), c.getSaldo());
+        if (c == null || p == null) {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Cliente ou Produto inválido");
+            return gson.toJson(response);
         }
-        return "{\"status\": \"erro\", \"mensagem\": \"Saldo insuficiente\"}";
+
+        if (c.debitar(p.getPreco())) {
+            response.addProperty("status", "sucesso");
+            response.addProperty("mensagem", "Download do produto '" + p.getNome() + "' liberado!");
+            response.addProperty("saldoRestante", c.getSaldo());
+        } else {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Saldo insuficiente");
+        }
+        return gson.toJson(response);
     }
 
     private String avaliarTrocaLivro(String jsonArgs) {
-        String clienteId = extrairValorJson(jsonArgs, "clienteId");
-        String nomeLivro = extrairValorJson(jsonArgs, "nomeLivro");
-        String estado = extrairValorJson(jsonArgs, "estado");
+        JsonObject request = gson.fromJson(jsonArgs, JsonObject.class);
+        String clienteId = request.get("clienteId").getAsString();
+        String nomeLivro = request.get("nomeLivro").getAsString();
+        String estado = request.get("estado").getAsString();
 
+        JsonObject response = new JsonObject();
         Cliente c = clientes.get(clienteId);
-        if (c == null) return "{\"status\": \"erro\", \"mensagem\": \"Cliente não encontrado\"}";
+        
+        if (c == null) {
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Cliente não encontrado");
+            return gson.toJson(response);
+        }
 
-        // O livro recebido pode ser um livro genérico, pois só precisamos das informações para validação e cálculo de créditos.
-        // Após isso, o sebo iria avaliar o livro e completar os dados após a avaliação.
-        Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", "Independente", 1, 
+        Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", 
+                                         new Editora("Independente", "Desconhecido"), 1, 
                                          nomeLivro, 50.0, 1, LocalDate.now(), "PT", "Livro usado");
 
-        // Checagem do estado do produto
         if (!livroOferecido.validarCondicaoTroca(estado)) {
-            return "{\"status\": \"erro\", \"mensagem\": \"Troca recusada. Não aceitamos livros no estado: " + estado + "\"}";
+            response.addProperty("status", "erro");
+            response.addProperty("mensagem", "Troca recusada. Não aceitamos livros no estado: " + estado);
+            return gson.toJson(response);
         }
 
         double creditosGanhos = livroOferecido.calcularValorDeTroca();
-
         c.adicionarCredito(creditosGanhos);
 
         int novoId = catalogoFisico.size() + catalogoDigital.size() + 1;
         catalogoFisico.put(novoId, livroOferecido);
 
-        return String.format("{\"status\": \"sucesso\", \"mensagem\": \"Livro aceito! Você recebeu R$ %.2f de créditos.\", \"saldo\": %.2f}", 
-                             creditosGanhos, c.getSaldo());
-    }
-
-    private String extrairValorJson(String json, String chave) {
-        String busca = "\"" + chave + "\":\"";
-        int inicio = json.indexOf(busca);
-        if (inicio == -1) return "0";
-        inicio += busca.length();
-        int fim = json.indexOf("\"", inicio);
-        return json.substring(inicio, fim);
+        response.addProperty("status", "sucesso");
+        response.addProperty("mensagem", "Livro aceito! Você recebeu R$ " + String.format("%.2f", creditosGanhos) + " de créditos.");
+        response.addProperty("saldo", c.getSaldo());
+        
+        return gson.toJson(response);
     }
 
     public static void main(String[] args) {
@@ -155,7 +248,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             ServidorVenda servidor = new ServidorVenda();
             Registry registry = LocateRegistry.createRegistry(1099);
             registry.rebind("ServicoSebo", servidor);
-            System.out.println("Servidor do Sebo aguardando conexões");
+            System.out.println("Servidor do Sebo disponível");
         } catch (Exception e) {
             e.printStackTrace();
         }
