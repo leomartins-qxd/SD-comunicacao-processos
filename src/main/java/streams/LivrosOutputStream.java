@@ -1,7 +1,6 @@
 package streams;
 import entidades.Livro;
 
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -44,7 +43,8 @@ public class LivrosOutputStream extends OutputStream{
                 int paginas = livro.getPaginas();
                 String autor = livro.getAutor();
                 String genero = livro.getGenero();
-                String editora = livro.getEditora();
+                
+                String editora = (livro.getEditora() != null) ? livro.getEditora().getNome() : "Desconhecida";
                 int edicao = livro.getEdicao();
 							
 				opLocal.println(" tamanhoNomeLivro: "+tamanhoNomeLivro+ "\n"+

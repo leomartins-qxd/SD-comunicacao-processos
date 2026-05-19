@@ -3,7 +3,7 @@ package streams;
 import java.io.*;
 import java.time.LocalDate;
 import java.util.Scanner;
-
+import entidades.Editora;
 import entidades.Livro;
 
 
@@ -41,11 +41,11 @@ public class LivrosInputStream extends InputStream{
         System.out.println("Informe o gênero do livro");
         String genero = sc.nextLine();
         System.out.println("Informe o nome da editora do livro");
-        String editora = sc.nextLine();
+        String nomeEditora = sc.nextLine();
         System.out.println("Informe o número da edição do livro");
         int edicao = Integer.parseInt(sc.nextLine());
 
-        livros[0] = new Livro(paginas, autor, genero, editora, edicao, nome, preco, quantidade, data, idioma, descricao);
+        livros[0] = new Livro(paginas, autor, genero, new Editora(nomeEditora, "Desconhecida"), edicao, nome, preco, quantidade, data, idioma, descricao);
     }
 
     public Livro[] readSystem(){
@@ -105,7 +105,6 @@ public class LivrosInputStream extends InputStream{
 
     @Override
     public int read() throws IOException {
-        // TODO
         return 0;
     }
 }

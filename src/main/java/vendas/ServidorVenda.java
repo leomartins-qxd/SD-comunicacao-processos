@@ -1,11 +1,11 @@
 package vendas;
 
 import entidades.*;
-// Importações do pacote Gson para lidar com JSON de forma nativa e segura
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import java.io.*;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -19,20 +19,21 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
     private Map<Integer, ProdutoFisico> catalogoFisico;
     private Map<Integer, ProdutoDigital> catalogoDigital;
     private Map<String, Cliente> clientes;
-    private Gson gson; // Conversor JSON
+    private Gson gson;
 
     protected ServidorVenda() throws RemoteException {
         super();
         catalogoFisico = new HashMap<>();
         catalogoDigital = new HashMap<>();
         clientes = new HashMap<>();
-        gson = new Gson(); // Inicializando o conversor JSON
+        gson = new Gson();
         
-        // Dados de teste
-        catalogoFisico.put(1, new Livro(300, "Machado de Assis", "Romance", "Typographia", 1,
+        catalogoFisico.put(1, new Livro(300, "Machado de Assis", "Romance", 
+                new Editora("Typographia", "Rio de Janeiro"), 1,
                 "Dom Casmurro", 45.0, 5, LocalDate.now(), "PT", "Clássico da literatura"));
                 
-        catalogoDigital.put(2, new Ebook(150, 2048, "Autor Digital", "Tecnologia", "TechBooks", 1, 
+        catalogoDigital.put(2, new Ebook(150, 2048, "Autor Digital", "Tecnologia", 
+                new Editora("TechBooks", "São Paulo"), 1, 
                 "Java RMI Guide", 25.0, LocalDate.now(), "PT", "Aprenda RMI passo a passo"));
         
         clientes.put("leomartins", new Cliente("leomartins", "Leonardo Martins", 100.0));
@@ -40,21 +41,62 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
     }
 
     @Override
-    public String doOperation(int methodId, String jsonArguments) throws RemoteException {
-        System.out.println("[SERVIDOR] Operação solicitada: " + methodId);
+    public byte[] comunicar(byte[] requisicaoBytes) throws RemoteException {
+        Mensagem request = getRequest(requisicaoBytes);
         
-        switch (methodId) {
-            case 1: return listarProdutos();
-            case 2: return consultarSaldo(jsonArguments);
-            case 3: return realizarCompraFisica(jsonArguments);
-            case 4: return realizarCompraDigital(jsonArguments);
-            case 5: return avaliarTrocaLivro(jsonArguments);
-            default: 
-                // Usando JsonObject para montar um erro formal em JSON
-                JsonObject erro = new JsonObject();
-                erro.addProperty("status", "erro");
-                erro.addProperty("mensagem", "Método inválido");
-                return gson.toJson(erro);
+        System.out.println("[SERVIDOR] Recebido RequestID: " + request.getRequestId() + " | MethodID: " + request.getMethodId());
+
+        byte[] resultadoBytes = null;
+        
+        // Verifica a referência do objeto
+        if ("ServicoSebo".equals(request.getObjectReference())) {
+            // Transforma os bytes do JSON de volta para String
+            String jsonArgs = new String(request.getArguments());
+            String jsonResponse = "";
+
+            switch (request.getMethodId()) {
+                case 1: jsonResponse = listarProdutos(); break;
+                case 2: jsonResponse = consultarSaldo(jsonArgs); break;
+                case 3: jsonResponse = realizarCompraFisica(jsonArgs); break;
+                case 4: jsonResponse = realizarCompraDigital(jsonArgs); break;
+                case 5: jsonResponse = avaliarTrocaLivro(jsonArgs); break;
+                default: 
+                    JsonObject erro = new JsonObject();
+                    erro.addProperty("status", "erro");
+                    erro.addProperty("mensagem", "Método inválido");
+                    jsonResponse = gson.toJson(erro);
+            }
+            // Transforma a String JSON de resposta em bytes
+            resultadoBytes = jsonResponse.getBytes();
+        }
+
+        return sendReply(request.getRequestId(), resultadoBytes);
+    }
+
+    // getRequest(): Desempacota o array de bytes na classe Mensagem
+     
+    public Mensagem getRequest(byte[] dados) {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(dados);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+            return (Mensagem) ois.readObject();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // sendReply(): Empacota os bytes de resultado numa nova Mensagem e serializa
+     
+    public byte[] sendReply(int requestId, byte[] argumentosResposta) {
+        // messageType = 1 indica que é um Reply
+        Mensagem reply = new Mensagem(1, requestId, "ServicoSebo", 0, argumentosResposta);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(reply);
+            return bos.toByteArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
         }
     }
 
@@ -80,11 +122,10 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
         }
         
         resposta.add("produtos", produtosArray);
-        return gson.toJson(resposta); // Converte o objeto Java para String JSON
+        return gson.toJson(resposta);
     }
 
     private String consultarSaldo(String jsonArgs) {
-        // Deserializando a string JSON recebida para um Objeto Java (JsonObject)
         JsonObject request = gson.fromJson(jsonArgs, JsonObject.class);
         String clienteId = request.get("clienteId").getAsString();
         
@@ -179,7 +220,8 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             return gson.toJson(response);
         }
 
-        Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", "Independente", 1, 
+        Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", 
+                                         new Editora("Independente", "Desconhecido"), 1, 
                                          nomeLivro, 50.0, 1, LocalDate.now(), "PT", "Livro usado");
 
         if (!livroOferecido.validarCondicaoTroca(estado)) {
@@ -206,7 +248,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             ServidorVenda servidor = new ServidorVenda();
             Registry registry = LocateRegistry.createRegistry(1099);
             registry.rebind("ServicoSebo", servidor);
-            System.out.println("Servidor do Sebo aguardando conexões");
+            System.out.println("Servidor do Sebo disponível");
         } catch (Exception e) {
             e.printStackTrace();
         }
