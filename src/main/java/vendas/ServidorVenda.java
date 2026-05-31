@@ -4,25 +4,19 @@ import entidades.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
-import java.io.*;
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
+import io.javalin.Javalin;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
+public class ServidorVenda {
     
     private Map<Integer, ProdutoFisico> catalogoFisico;
     private Map<Integer, ProdutoDigital> catalogoDigital;
     private Map<String, Cliente> clientes;
     private Gson gson;
 
-    protected ServidorVenda() throws RemoteException {
-        super();
+    public ServidorVenda() {
         catalogoFisico = new HashMap<>();
         catalogoDigital = new HashMap<>();
         clientes = new HashMap<>();
@@ -40,66 +34,6 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
         clientes.put("rodrigo", new Cliente("rodrigo", "Rodrigo Albuquerque", 50.0));
     }
 
-    @Override
-    public byte[] comunicar(byte[] requisicaoBytes) throws RemoteException {
-        Mensagem request = getRequest(requisicaoBytes);
-        
-        System.out.println("[SERVIDOR] Recebido RequestID: " + request.getRequestId() + " | MethodID: " + request.getMethodId());
-
-        byte[] resultadoBytes = null;
-        
-        // Verifica a referência do objeto
-        if ("ServicoSebo".equals(request.getObjectReference())) {
-            // Transforma os bytes do JSON de volta para String
-            String jsonArgs = new String(request.getArguments());
-            String jsonResponse = "";
-
-            switch (request.getMethodId()) {
-                case 1: jsonResponse = listarProdutos(); break;
-                case 2: jsonResponse = consultarSaldo(jsonArgs); break;
-                case 3: jsonResponse = realizarCompraFisica(jsonArgs); break;
-                case 4: jsonResponse = realizarCompraDigital(jsonArgs); break;
-                case 5: jsonResponse = avaliarTrocaLivro(jsonArgs); break;
-                default: 
-                    JsonObject erro = new JsonObject();
-                    erro.addProperty("status", "erro");
-                    erro.addProperty("mensagem", "Método inválido");
-                    jsonResponse = gson.toJson(erro);
-            }
-            // Transforma a String JSON de resposta em bytes
-            resultadoBytes = jsonResponse.getBytes();
-        }
-
-        return sendReply(request.getRequestId(), resultadoBytes);
-    }
-
-    // getRequest(): Desempacota o array de bytes na classe Mensagem
-     
-    public Mensagem getRequest(byte[] dados) {
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(dados);
-             ObjectInputStream ois = new ObjectInputStream(bis)) {
-            return (Mensagem) ois.readObject();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    // sendReply(): Empacota os bytes de resultado numa nova Mensagem e serializa
-     
-    public byte[] sendReply(int requestId, byte[] argumentosResposta) {
-        // messageType = 1 indica que é um Reply
-        Mensagem reply = new Mensagem(1, requestId, "ServicoSebo", 0, argumentosResposta);
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-            oos.writeObject(reply);
-            return bos.toByteArray();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new byte[0];
-        }
-    }
-
     private String listarProdutos() {
         JsonObject resposta = new JsonObject();
         JsonArray produtosArray = new JsonArray();
@@ -108,7 +42,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             JsonObject p = new JsonObject();
             p.addProperty("id", entry.getKey());
             p.addProperty("nome", entry.getValue().getNome());
-            p.addProperty("tipo", "Fisico");
+            p.addProperty("type", "Fisico");
             p.addProperty("preco", entry.getValue().getPreco());
             produtosArray.add(p);
         }
@@ -116,7 +50,7 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
             JsonObject p = new JsonObject();
             p.addProperty("id", entry.getKey());
             p.addProperty("nome", entry.getValue().getNome());
-            p.addProperty("tipo", "Digital");
+            p.addProperty("type", "Digital");
             p.addProperty("preco", entry.getValue().getPreco());
             produtosArray.add(p);
         }
@@ -221,8 +155,8 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
         }
 
         Livro livroOferecido = new Livro(200, "Desconhecido", "Diversos", 
-                                         new Editora("Independente", "Desconhecido"), 1, 
-                                         nomeLivro, 50.0, 1, LocalDate.now(), "PT", "Livro usado");
+                new Editora("Independente", "Desconhecido"), 1, 
+                nomeLivro, 50.0, 1, LocalDate.now(), "PT", "Livro usado");
 
         if (!livroOferecido.validarCondicaoTroca(estado)) {
             response.addProperty("status", "erro");
@@ -244,13 +178,45 @@ public class ServidorVenda extends UnicastRemoteObject implements ServicoVenda {
     }
 
     public static void main(String[] args) {
-        try {
-            ServidorVenda servidor = new ServidorVenda();
-            Registry registry = LocateRegistry.createRegistry(1099);
-            registry.rebind("ServicoSebo", servidor);
-            System.out.println("Servidor do Sebo disponível");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        ServidorVenda servidor = new ServidorVenda();
+
+        // Inicialização do servidor HTTP usando Javalin
+        Javalin app = Javalin.create(config -> {
+
+            // Permite requisições de diferentes origens
+            config.bundledPlugins.enableCors(cors -> cors.addRule(it -> it.anyHost()));
+
+            // Definição das rotas
+            config.routes.get("/produtos", ctx -> {
+                ctx.contentType("application/json");
+                ctx.result(servidor.listarProdutos());
+            });
+
+            config.routes.post("/saldo", ctx -> {
+                ctx.contentType("application/json");
+                String resposta = servidor.consultarSaldo(ctx.body());
+                ctx.result(resposta);
+            });
+
+            config.routes.post("/comprar/fisico", ctx -> {
+                ctx.contentType("application/json");
+                String resposta = servidor.realizarCompraFisica(ctx.body());
+                ctx.result(resposta);
+            });
+
+            config.routes.post("/comprar/digital", ctx -> {
+                ctx.contentType("application/json");
+                String resposta = servidor.realizarCompraDigital(ctx.body());
+                ctx.result(resposta);
+            });
+
+            config.routes.post("/trocar", ctx -> {
+                ctx.contentType("application/json");
+                String resposta = servidor.avaliarTrocaLivro(ctx.body());
+                ctx.result(resposta);
+            });
+        }).start(8080);
+
+        System.out.println("Servidor do Sebo rodando via API HTTP na porta 8080");
     }
 }
