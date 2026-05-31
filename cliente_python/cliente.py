@@ -1,27 +1,40 @@
 import requests
 
+# Endereço base onde o servidor está em execução
 BASE_URL = "http://localhost:8080"
 
 def formatar_saida_catalogo(json_data):
+    """
+    Recebe o dicionário JSON correspondente ao catálogo, extrai os produtos
+    e exibe-os numa tabela.
+    """
     print("\n=================================================================")
     print(f" {'ID':<5} | {'NOME DO PRODUTO':<30} | {'TIPO':<10} | {'PREÇO':<10}")
     print("-----------------------------------------------------------------")
 
     produtos = json_data.get("produtos", [])
+    
     if not produtos:
         print(" Nenhum produto disponível.")
         print("=================================================================")
         return
 
+    # Formata cada campo de acordo com o espaçamento definido no cabeçalho
     for item in produtos:
         print(f" {str(item.get('id')):<5} | {item.get('nome'):<30} | {item.get('type'):<10} | R$ {str(item.get('preco')):<8}")
     print("=================================================================")
 
 def formatar_saida_status(json_data):
+    """
+    Interpreta os resultados das operações (como compras e trocas),
+    lendo a propriedade 'status' e exibindo mensagens e saldos relevantes.
+    """
     status = json_data.get("status", "erro")
     print("\n-----------------------------------------------------------------")
+    
     if status.lower() == "sucesso":
         print(" [✓] OPERAÇÃO REALIZADA COM SUCESSO")
+        # Mostra as informações adicionais caso elas venham anexadas na resposta
         if "mensagem" in json_data:
             print(f" Mensagem: {json_data['mensagem']}")
         if "saldo" in json_data:
@@ -35,11 +48,17 @@ def formatar_saida_status(json_data):
     print("-----------------------------------------------------------------")
 
 def main():
+    """
+    Função principal que gere a interação com o utilizador e faz o mapeamento
+    entre as opções escolhidas e as rotas da API no servidor.
+    """
     print("=========================================")
     print("===   BEM-VINDO AO SISTEMA DO SEBO    ===")
     print("=========================================")
+    
     id_cliente = input("Digite o seu identificador: ")
 
+    # Ciclo infinito para o menu interativo
     while True:
         print("\n-----------------------------------------")
         print(" 1. Listar Catálogo")
@@ -51,6 +70,7 @@ def main():
         print("-----------------------------------------")
         opcao = input("Opção escolhida: ")
 
+        # Proteção contra introdução de caracteres inválidos no menu
         try:
             opcao = int(opcao)
         except ValueError:
@@ -63,10 +83,12 @@ def main():
 
         try:
             if opcao == 1:
+                # Efetua um pedido GET (não precisa de corpo de mensagem)
                 response = requests.get(f"{BASE_URL}/produtos")
                 formatar_saida_catalogo(response.json())
 
             elif opcao == 2:
+                # Prepara os dados e envia através de um pedido POST
                 payload = {"clienteId": id_cliente}
                 response = requests.post(f"{BASE_URL}/saldo", json=payload)
                 formatar_saida_status(response.json())
@@ -86,6 +108,8 @@ def main():
             elif opcao == 5:
                 nome_livro = input("Introduza o Nome do Livro que deseja trocar: ")
                 estado = input("O livro possui defeitos? (Se não houver problemas, aperte ENTER): ")
+                
+                # Se o utilizador apenas pressionar ENTER, assume-se que está num estado novo
                 if not estado.strip():
                     estado = "Novo"
 
@@ -96,8 +120,10 @@ def main():
             else:
                 print("\nOpção incorreta. Tente novamente.")
 
+        # Intercepta erros de ligação (ex: Timeout, Connection Refused) se o servidor não estiver ativo
         except requests.exceptions.RequestException as e:
             print(f"Erro de ligação ao Servidor: {e}")
 
+# Ponto de entrada do script
 if __name__ == "__main__":
     main()
