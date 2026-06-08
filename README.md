@@ -1,53 +1,43 @@
 # Projeto Sebo Distribuído - Sistemas Distribuídos
-## Relatório referente ao Trabalho 1 - Comunicação entre Processos
+## Relatórios referentes aos Trabalhos 1 e 4 (Comunicação entre Processos e Comunicação Indireta)
 
-Este projeto consiste em um sistema de gerenciamento de um sebo, integrando conceitos de RMI e Serialização de Objetos em Java. O sistema permite o gerenciamento de produtos físicos e digitais, além de possuir um subsistema de troca de produtos.
+Este projeto consiste em um sistema de gerenciamento de um sebo, integrando conceitos modernos de Sistemas Distribuídos. O sistema permite o gerenciamento de produtos físicos e digitais, além de possuir um subsistema de troca de produtos, operando sob uma arquitetura de microsserviços simulados e comunicação indireta em grupo.
 
 ## Grupo
 **Alunos:**
 * Leonardo Martins. Matrícula: 553762
 * Rodrigo Albuquerque. Matrícula: 554514
 
+## Evolução da Arquitetura (Trabalho 3 e 4)
+O projeto abandonou a comunicação direta via RMI e foi refatorado para utilizar as seguintes tecnologias:
 
-## Aprendizado
-Essa atividade avançou nossos conhecimentos sobre RMI, que requer um jeito novo de programar (diferente dos comumente usados TCP e UDP).
- 
+* **API REST HTTP (Javalin):** As operações centrais (listagem de catálogo, compras e consulta de saldo) ocorrem via requisições HTTP na porta 8080. Isso permitiu a integração de clientes de diversas linguagens (Java, Python e JavaScript).
+* **Comunicação Indireta em Grupo (JGroups):** O sistema implementa desacoplamento espacial através do JGroups. Um cluster chamado `SeboCluster` é utilizado para disparar notificações assíncronas. Quando o `ServidorVenda` aceita um livro de troca de um cliente, ele emite uma notificação em multicast para todos os outros clientes avisando da nova disponibilidade. O framework garante internamente a gerência de visões e membros (GMS).
 
-## Dificuldades Encontradas
+## Aprendizado e Dificuldades Encontradas
+A transição do RMI para HTTP/JSON simplificou o fluxo de dados e permitiu o uso de bibliotecas de requisição padrão (`HttpClient` do Java 11, `requests` no Python e `fetch` no JavaScript).
 
-O RMI requer um modo de pensar diferente, o que acaba criando diversas confusões lógicas durante o desenvolvimento do trabalho. Por exemplo, se confundir sobre onde o método
-atual realmente está sendo executado, e quais dados ele possui acesso.
+A principal dificuldade em relação à Comunicação Indireta foi estruturar a execução concorrente. Integrar o JGroups de forma que o `ReceiverAdapter` ficasse aguardando mensagens silenciosamente em uma *Thread* de fundo, sem bloquear as rotinas do `Scanner` e do menu principal no terminal.
 
-
-## Nota merecida
-Esta entrega atingiu os requisitos propostos pelo trabalho, faltando apenas refinamentos no sistema para deixá-lo mais único. Por conta disso, um 9 seria a nota esperada.
-
-## Horas para realização
-Contando as horas de leitura dos conteúdos, video-aulas externas e, principalmente, o próprio desenvolvimento do projeto, passamos cerca de **20 horas** para a realização desta atividade.
-
----
-# Estrutura do Projeto
-## Entidades Principais
-
+## Estrutura do Projeto
+### Entidades Principais
 O sistema foi construído utilizando uma hierarquia de classes para representar o estoque do sebo:
+1.  **Livro, Apostila, Ebook e Disco:** Entidades que representam os itens físicos e virtuais, estendendo as classes abstratas `ProdutoFisico` e `ProdutoDigital`.
 
-1.  **Livro:** Entidade base que contém informações como nome, autor, preço, quantidade, data de publicação, idioma e descrição.
-2.  **Apostila:** Especialização para materiais didáticos.
-3.  **Ebook:** Representação de produtos digitais, incluindo formato do arquivo e tamanho.
-4.  **Disco:** Entidade para itens de áudio/música.
-5.  **Classes Abstratas:** 
-    * `ProdutoFisico`: Define características de itens tangíveis (como peso e dimensões).
-    * `ProdutoDigital`: Define características de itens virtuais (como link para download e validade).
-
- Além disso, segue o padrão do RMI, com funções doOperation(), getRequest() e sendReply().
----
+### Módulos de Comunicação
+1.  **`vendas.ServidorVenda`:** Servidor centralizado utilizando o micro-framework Javalin e armazenando os dados de estoque/clientes na memória.
+2.  **`vendas.ClienteVenda`:** Cliente Java console nativo comunicando-se via `HttpClient` e utilizando a biblioteca `Gson`.
+3.  **`cliente.py` e `cliente.js`:** Clientes externos em Python e Node.js estruturados para consumir nativamente a API REST do sistema.
+4.  **`notificacoes.ServidorNotificacao` e `notificacoes.ClienteNotificacao`:** Envelopes responsáveis pela comunicação multicast (JChannel/Receiver) integrados ao ciclo de vida das vendas.
 
 ## Instruções de Execução
 
-### Sistema de Venda e Troca de Livros (Cliente/Servidor RMI)
-Este módulo demonstra a utilização de RMI em uma arquitetura Cliente/Servidor, usando um sistema de vendas e
-trocas de livros e/ou outros produtos.
+### 1. Iniciar o Servidor
+Execute a classe `vendas.ServidorVenda.java`.
+*O console avisará que a API REST está ativa na porta `8080` e que o canal JGroups `SeboCluster` foi iniciado com sucesso.*
 
-**Ordem de execução:**
-1.  **ServidorVenda.java:** Inicie primeiro para que o servidor fique disposto a novas conexões.
-2.  **ClienteVenda.java:** Execute para conectar ao servidor.
+### 2. Iniciar os Clientes
+Abra diferentes terminais para observar a rede atuando:
+* **Cliente Java:** Execute a classe `vendas.ClienteVenda.java`. O cliente fará o *bind* instantâneo no grupo do JGroups em segundo plano e, em seguida, exibirá o menu de interação via HTTP.
+* **Cliente Python:** Na pasta `cliente_python`, execute `python cliente.py`.
+* **Cliente JS:** Na pasta `cliente_js`, execute `node cliente.js`.
