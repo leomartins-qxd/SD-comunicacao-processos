@@ -8,6 +8,7 @@ import io.javalin.Javalin;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import notificacoes.ServidorNotificacao;
 
 public class ServidorVenda {
     
@@ -15,6 +16,7 @@ public class ServidorVenda {
     private Map<Integer, ProdutoFisico> catalogoFisico;
     private Map<Integer, ProdutoDigital> catalogoDigital;
     private Map<String, Cliente> clientes;
+    private ServidorNotificacao notificador;
     
     // Objeto Gson utilizado para serializar e desserializar JSON
     private Gson gson;
@@ -41,6 +43,14 @@ public class ServidorVenda {
         // Cadastrando clientes com saldos iniciais
         clientes.put("leomartins", new Cliente("leomartins", "Leonardo Martins", 100.0));
         clientes.put("rodrigo", new Cliente("rodrigo", "Rodrigo Albuquerque", 50.0));
+
+        notificador = new ServidorNotificacao();
+        try {
+            notificador.iniciar();
+            System.out.println("Canal de Notificações Multicast (JGroups) iniciado.");
+        } catch (Exception e) {
+            System.err.println("Erro ao iniciar JGroups: " + e.getMessage());
+        }
     }
 
     /**
@@ -212,6 +222,16 @@ public class ServidorVenda {
         // Gera um ID sequencial rudimentar e adiciona o livro oferecido ao catálogo do Sebo
         int novoId = catalogoFisico.size() + catalogoDigital.size() + 1;
         catalogoFisico.put(novoId, livroOferecido);
+
+        try {
+            notificador.enviarNotificacaoGlobal("Atenção! Um exemplar usado de '" +
+                    livroOferecido.getNome() +
+                    "' acabou de entrar no catálogo!");
+        } catch (Exception e) {
+            // Apenas ignora se falhar, para não quebrar a execução
+        }
+
+        response.addProperty("status", "sucesso");
 
         response.addProperty("status", "sucesso");
         response.addProperty("mensagem", "Livro aceito! Você recebeu R$ " + String.format("%.2f", creditosGanhos) + " de créditos.");
